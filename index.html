@@ -33,7 +33,7 @@
       background: #020617;
       color: white;
       overflow-x: hidden;
-      overflow-y: auto; /* 👈 permite scroll */
+      overflow-y: auto;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
@@ -478,6 +478,20 @@
       .header { flex-direction: column; align-items: flex-start; }
       h1 { font-size: 1.05rem; }
     }
+
+    /* Extra mobile tweaks */
+    @media (max-width: 480px) {
+      .card {
+        padding: 0.75rem 0.75rem;
+      }
+      button {
+        width: 100%;
+        margin-right: 0;
+      }
+      .header {
+        align-items: flex-start;
+      }
+    }
   </style>
 
   <script>
@@ -656,6 +670,11 @@
           <span>Últimos bloques en este dispositivo</span>
         </div>
         <div class="small" id="historyList">No hay bloques guardados todavía.</div>
+        <div style="margin-top:0.5rem; display:flex; justify-content:flex-end;">
+          <button id="clearHistoryBtn" class="secondary" style="font-size:0.7rem;padding:0.35rem 0.8rem;">
+            Borrar historial
+          </button>
+        </div>
       </div>
 
       <!-- LOG -->
@@ -753,6 +772,7 @@
     const routeCtx = routeCanvas.getContext("2d");
     const logBox = document.getElementById("logBox");
     const historyList = document.getElementById("historyList");
+    const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 
     let trackingId = null;
     let trackingPoints = [];
@@ -802,6 +822,12 @@
         </div>`;
       });
       historyList.innerHTML = html;
+    }
+
+    function clearHistory() {
+      localStorage.removeItem("kairos_block_history");
+      renderHistory();
+      log("Historial de bloques borrado por el usuario.");
     }
 
     (function initFromStorage() {
@@ -1235,6 +1261,12 @@
       startTime = null;
       startBtn.disabled = false;
       stopBtn.disabled = true;
+    });
+
+    clearHistoryBtn.addEventListener("click", () => {
+      if (confirm("¿Seguro que quieres borrar el historial de bloques guardados?")) {
+        clearHistory();
+      }
     });
 
     // --------- PDF ---------
