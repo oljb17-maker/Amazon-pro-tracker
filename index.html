@@ -1,0 +1,1199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Kairos Block Tracker – HUD</title>
+
+  <!-- Manifest PWA -->
+  <link rel="manifest" href="manifest.json">
+
+  <!-- iOS: Hacerlo fullscreen -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+
+  <!-- Splash CSS -->
+  <style>
+    body, html {
+      margin: 0; padding: 0;
+      background: #020617;
+      color: white;
+      overflow: hidden;
+    }
+
+    #splash {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 20% 20%, #22c55e33, #020617 70%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      text-align: center;
+      font-family: system-ui, sans-serif;
+      animation: fadeOut 1s ease 3.4s forwards;
+    }
+
+    @keyframes fadeOut {
+      to { opacity: 0; visibility: hidden; }
+    }
+
+    .loader {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      border: 4px solid #22c55e55;
+      border-top-color: #22c55e;
+      animation: spin 1.3s linear infinite;
+      margin-bottom: 22px;
+      box-shadow: 0 0 25px #22c55e55;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .splash-title {
+      font-size: 1.4rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: #a7f3d0;
+      text-shadow: 0 0 15px #22c55e;
+    }
+
+    .splash-sub {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      opacity: 0.75;
+      color: #9ca3af;
+    }
+
+    /* Contenedor real de la app (oculto durante splash) */
+    #app {
+      visibility: hidden;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+    }
+
+    #app.ready {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+
+  <script>
+    // Mostrar app cuando termina splash
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        document.getElementById("app").classList.add("ready");
+      }, 3100);
+    });
+
+    // Instalar service worker
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js");
+    }
+  </script>
+</head>
+
+<body>
+
+  <!-- 🟢 SPLASH SCREEN -->
+  <div id="splash">
+    <div class="loader"></div>
+    <div class="splash-title">Inicializando sistemas...</div>
+    <div class="splash-sub">Kairos HUD Driver Telemetry</div>
+  </div>
+
+  <!-- 🟢 APP REAL (tu HUD futurista) -->
+  <div id="app">
+    <!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kairos Block Tracker – Futuristic HUD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- jsPDF para el PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color-scheme: dark;
+      --bg-main: #020617;
+      --bg-card: rgba(15, 23, 42, 0.85);
+      --border-card: rgba(148, 163, 184, 0.2);
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.35);
+      --accent-strong: #4ade80;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --text-soft: #6b7280;
+      --danger: #ef4444;
+      --danger-soft: rgba(239, 68, 68, 0.4);
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 10% 0%, #0f172a 0, transparent 45%),
+        radial-gradient(circle at 90% 100%, #16a34a33 0, transparent 50%),
+        radial-gradient(circle at 50% 120%, #1e293b 0, #020617 60%);
+      color: var(--text-main);
+      display: flex;
+      justify-content: center;
+      padding: 1rem;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(15, 23, 42, 0.6) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(15, 23, 42, 0.6) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.6;
+      pointer-events: none;
+      z-index: -2;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at 0 0, rgba(56, 189, 248, 0.15), transparent 60%);
+      mix-blend-mode: screen;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 980px;
+      background: radial-gradient(circle at top left, rgba(34, 197, 94, 0.08), transparent 55%),
+                  radial-gradient(circle at bottom right, rgba(56, 189, 248, 0.05), transparent 55%),
+                  rgba(2, 6, 23, 0.92);
+      border-radius: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 0.9),
+        0 25px 80px rgba(0, 0, 0, 0.9),
+        0 0 40px rgba(34, 197, 94, 0.25);
+      padding: 1rem 1.25rem 1.5rem;
+      backdrop-filter: blur(18px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .app::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% -10%, rgba(34, 197, 94, 0.13), transparent 50%);
+      opacity: 0.7;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .logo-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .logo-orbit {
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      border: 1px solid var(--accent-soft);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 0 18px rgba(34, 197, 94, 0.6),
+        0 0 4px rgba(34, 197, 94, 0.9) inset;
+      background: radial-gradient(circle at 30% 20%, #22c55e, #052e16);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-orbit::after {
+      content: "";
+      position: absolute;
+      width: 130%;
+      height: 130%;
+      border-radius: inherit;
+      background: conic-gradient(
+        from 120deg,
+        rgba(34, 197, 94, 0.4),
+        transparent,
+        rgba(34, 197, 94, 0.75),
+        transparent,
+        rgba(34, 197, 94, 0.4)
+      );
+      mix-blend-mode: screen;
+      opacity: 0.7;
+      animation: spinOrbit 10s linear infinite;
+    }
+
+    @keyframes spinOrbit { to { transform: rotate(360deg); } }
+
+    .logo-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #ecfeff;
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.9);
+      position: relative;
+      z-index: 1;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      margin: 0;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #ecfeff;
+    }
+
+    .badge {
+      font-size: 0.65rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      padding: 0.25rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: #9ca3af;
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), #020617);
+    }
+
+    .subtitle {
+      text-align: left;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin: 0 0 0.75rem;
+    }
+
+    .card {
+      border-radius: 18px;
+      background: radial-gradient(circle at top left, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.98));
+      border: 1px solid var(--border-card);
+      padding: 0.9rem 0.9rem;
+      margin-bottom: 0.8rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(120deg, rgba(34, 197, 94, 0.15), transparent 40%, transparent 60%, rgba(56, 189, 248, 0.16)),
+        radial-gradient(circle at 0 0, rgba(15, 23, 42, 0.8), transparent 55%);
+      mix-blend-mode: soft-light;
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .card-title {
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+      color: #e5e7eb;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .card-title span {
+      font-size: 0.7rem;
+      color: var(--text-soft);
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    .small {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+    }
+
+    label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 0.15rem;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.45rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      background: radial-gradient(circle at top, #020617, #020617);
+      color: var(--text-main);
+      font-size: 0.9rem;
+      box-sizing: border-box;
+      transition: border 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    input::placeholder { color: #4b5563; }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 0.9),
+        0 0 22px var(--accent-soft);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .vehicle-hint {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 0.35rem;
+    }
+
+    .checkbox-row input[type="checkbox"] {
+      width: auto;
+      accent-color: var(--accent);
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 0.55rem 1.3rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 0.4rem;
+      margin-top: 0.35rem;
+      position: relative;
+      overflow: hidden;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    button::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 0 0, rgba(255,255,255,0.18), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s linear;
+    }
+
+    button:hover::before { opacity: 1; }
+
+    .primary {
+      background: radial-gradient(circle at top left, #22c55e, #166534);
+      color: #022c22;
+      box-shadow:
+        0 0 16px rgba(34, 197, 94, 0.7),
+        0 0 2px rgba(34, 197, 94, 0.9) inset;
+    }
+
+    .primary:disabled {
+      background: radial-gradient(circle at center, #14532d, #052e16);
+      color: #4ade80;
+      box-shadow: none;
+      cursor: default;
+      opacity: 0.7;
+    }
+
+    .danger {
+      background: radial-gradient(circle at top left, #ef4444, #7f1d1d);
+      color: #fef2f2;
+      box-shadow:
+        0 0 14px rgba(239, 68, 68, 0.6),
+        0 0 2px rgba(127, 29, 29, 0.95) inset;
+    }
+
+    .danger:disabled {
+      background: radial-gradient(circle at center, #450a0a, #111827);
+      color: #fecaca;
+      box-shadow: none;
+      cursor: default;
+      opacity: 0.7;
+    }
+
+    .secondary {
+      background: radial-gradient(circle at top left, #020617, #020617);
+      color: var(--text-main);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow:
+        0 0 10px rgba(15, 23, 42, 0.95),
+        0 0 0 1px rgba(15, 23, 42, 0.9) inset;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 0.45rem;
+    }
+
+    .stat-label {
+      font-size: 0.72rem;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .stat-value {
+      font-size: 0.97rem;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-top: 0.1rem;
+    }
+
+    .status-good { color: var(--accent-strong); text-shadow: 0 0 8px rgba(34, 197, 94, 0.9); }
+    .status-warn { color: #facc15; text-shadow: 0 0 8px rgba(234, 179, 8, 0.8); }
+    .status-bad  { color: #f97373; text-shadow: 0 0 8px rgba(239, 68, 68, 0.8); }
+
+    canvas {
+      width: 100%;
+      max-width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+      background:
+        radial-gradient(circle at top, rgba(34, 197, 94, 0.18), transparent 55%),
+        radial-gradient(circle at bottom, #020617, #020617);
+      box-shadow:
+        0 0 0 1px rgba(15, 23, 42, 1) inset,
+        0 0 30px rgba(15, 23, 42, 1),
+        0 0 28px rgba(34, 197, 94, 0.18);
+      box-sizing: border-box;
+    }
+
+    .log {
+      font-size: 0.7rem;
+      background: radial-gradient(circle at top left, #020617, #020617);
+      border-radius: 12px;
+      border: 1px solid rgba(15, 23, 42, 0.9);
+      padding: 0.35rem 0.5rem;
+      max-height: 130px;
+      overflow: auto;
+      white-space: pre-wrap;
+      box-shadow: inset 0 0 10px rgba(15, 23, 42, 1);
+    }
+
+    @media (max-width: 640px) {
+      .app {
+        padding: 0.85rem 0.75rem 1rem;
+        border-radius: 18px;
+      }
+      .header { flex-direction: column; align-items: flex-start; }
+      h1 { font-size: 1.05rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- HEADER -->
+    <div class="header">
+      <div class="logo-wrap">
+        <div class="logo-orbit"><div class="logo-dot"></div></div>
+        <div>
+          <h1>Kairos Block Tracker</h1>
+          <p class="subtitle">Telemetría de bloques: millas, consumo y ganancia en tiempo real.</p>
+        </div>
+      </div>
+      <div class="badge">OTTOLEO · DRIVER HUD</div>
+    </div>
+
+    <!-- CONFIGURACIÓN BÁSICA -->
+    <div class="card">
+      <div class="card-title">
+        DATOS DEL BLOQUE
+        <span>Entrada mínima · el resto es automático</span>
+      </div>
+      <div class="row">
+        <div>
+          <label for="blockPrice">Precio del bloque (USD)</label>
+          <input id="blockPrice" type="number" min="0" step="0.01" placeholder="Ej: 84.00" />
+        </div>
+        <div>
+          <label for="vehicleCategory">Tipo de vehículo</label>
+          <select id="vehicleCategory">
+            <option value="">Selecciona categoría…</option>
+            <option value="sedan">Sedán – (Corolla, Civic, Elantra)</option>
+            <option value="sedan_mid">Sedán medio – (Sonata, Accord, Camry)</option>
+            <option value="sedan_large">Sedán grande – (Charger, Chrysler 300)</option>
+            <option value="suv_compact">SUV compacta – (Kona, Kicks, Crosstrek)</option>
+            <option value="suv">SUV – (Santa Fe, Sorento, Murano)</option>
+            <option value="suv_large">SUV grande – (Suburban, Expedition, Tahoe)</option>
+            <option value="hybrid">Híbrido – (Sonata Hybrid, Prius, Ioniq Hybrid)</option>
+            <option value="ev">EV – (Ioniq 5, Kona EV, Tesla Model 3)</option>
+          </select>
+          <p class="vehicle-hint small" id="vehicleHint">
+            Ejemplos y consumo estimado aparecerán aquí.
+          </p>
+          <div class="checkbox-row">
+            <input type="checkbox" id="rememberVehicle" />
+            <label for="rememberVehicle" style="margin:0;font-size:0.75rem;">Recordar este vehículo para próximos bloques</label>
+          </div>
+        </div>
+        <div>
+          <label for="gasPrice">Precio promedio del galón (USD)</label>
+          <input id="gasPrice" type="number" min="0" step="0.01" value="3.50" />
+          <p class="small">Se usa para estimar el costo del combustible (gas/híbrido).</p>
+          <label for="kwhPrice" style="margin-top:0.4rem;">Precio promedio kWh (USD)</label>
+          <input id="kwhPrice" type="number" min="0" step="0.01" value="0.17" />
+          <p class="small">Se usa para estimar el costo de energía (EV).</p>
+        </div>
+      </div>
+
+      <button id="startBtn" class="primary">Iniciar bloque</button>
+      <button id="stopBtn" class="danger" disabled>Finalizar bloque</button>
+    </div>
+
+    <!-- BLOQUE EN CURSO -->
+    <div class="card">
+      <div class="card-title">
+        BLOQUE EN CURSO
+        <span>Tracking GPS · mantén esta ventana abierta</span>
+      </div>
+      <div class="stats-grid">
+        <div>
+          <div class="stat-label">Estado</div>
+          <div class="stat-value" id="statusText">En espera</div>
+        </div>
+        <div>
+          <div class="stat-label">Tiempo transcurrido</div>
+          <div class="stat-value" id="timeText">00:00:00</div>
+        </div>
+        <div>
+          <div class="stat-label">Millas (tracking)</div>
+          <div class="stat-value" id="milesText">0.00 mi</div>
+        </div>
+        <div>
+          <div class="stat-label">Puntos GPS</div>
+          <div class="stat-value" id="pointsText">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESUMEN -->
+    <div class="card">
+      <div class="card-title">
+        RESUMEN DEL BLOQUE
+        <span>Se actualiza al finalizar el tracking</span>
+      </div>
+      <div class="stats-grid">
+        <div>
+          <div class="stat-label">Distancia recorrida</div>
+          <div class="stat-value" id="summaryMiles">—</div>
+        </div>
+        <div>
+          <div class="stat-label">Tiempo total</div>
+          <div class="stat-value" id="summaryTime">—</div>
+        </div>
+        <div>
+          <div class="stat-label">Consumo estimado</div>
+          <div class="stat-value" id="summaryFuel">—</div>
+        </div>
+        <div>
+          <div class="stat-label">Costo combustible / energía</div>
+          <div class="stat-value" id="summaryFuelCost">—</div>
+        </div>
+        <div>
+          <div class="stat-label">Precio bloque</div>
+          <div class="stat-value" id="summaryBlockPrice">—</div>
+        </div>
+        <div>
+          <div class="stat-label">Ganancia neta aprox.</div>
+          <div class="stat-value" id="summaryNet">—</div>
+        </div>
+      </div>
+      <p class="small">
+        Veredicto: <span id="summaryVerdict">—</span>
+      </p>
+      <button id="pdfBtn" class="secondary" disabled>Generar PDF (último bloque)</button>
+    </div>
+
+    <!-- MAPA MINIMALISTA -->
+    <div class="card">
+      <div class="card-title">
+        RUTA DEL BLOQUE
+        <span>HUD minimalista de la trayectoria</span>
+      </div>
+      <p class="small">Se dibuja a partir de los puntos GPS capturados durante el bloque.</p>
+      <canvas id="routeCanvas" width="600" height="240"></canvas>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="card">
+      <div class="card-title">
+        HISTORIAL RECIENTE
+        <span>Últimos bloques en este dispositivo</span>
+      </div>
+      <div class="small" id="historyList">No hay bloques guardados todavía.</div>
+    </div>
+
+    <!-- LOG -->
+    <div class="card">
+      <div class="card-title">
+        LOG DE TRACKING
+        <span>Para debug / revisar puntos registrados</span>
+      </div>
+      <div class="log" id="logBox"></div>
+    </div>
+  </div>
+
+  <script>
+    // Categorías de vehículo con tipo de energía
+    const VEHICLE_CATEGORIES = {
+      sedan: {
+        name: "Sedán",
+        examples: "Ej: Toyota Corolla, Honda Civic, Hyundai Elantra",
+        fuelKind: "gas",
+        mpg: 32
+      },
+      sedan_mid: {
+        name: "Sedán medio",
+        examples: "Ej: Hyundai Sonata, Honda Accord, Toyota Camry",
+        fuelKind: "gas",
+        mpg: 30
+      },
+      sedan_large: {
+        name: "Sedán grande",
+        examples: "Ej: Dodge Charger, Chrysler 300",
+        fuelKind: "gas",
+        mpg: 26
+      },
+      suv_compact: {
+        name: "SUV compacta",
+        examples: "Ej: Hyundai Kona, Nissan Kicks, Subaru Crosstrek",
+        fuelKind: "gas",
+        mpg: 28
+      },
+      suv: {
+        name: "SUV",
+        examples: "Ej: Hyundai Santa Fe, Kia Sorento, Nissan Murano",
+        fuelKind: "gas",
+        mpg: 25
+      },
+      suv_large: {
+        name: "SUV grande",
+        examples: "Ej: Chevy Suburban, Ford Expedition, Tahoe",
+        fuelKind: "gas",
+        mpg: 20
+      },
+      hybrid: {
+        name: "Híbrido",
+        examples: "Ej: Sonata Hybrid, Prius, Ioniq Hybrid",
+        fuelKind: "gas",
+        mpg: 45
+      },
+      ev: {
+        name: "EV",
+        examples: "Ej: Hyundai Ioniq 5, Kona EV, Tesla Model 3",
+        fuelKind: "ev",
+        miPerKwh: 3.5
+      }
+    };
+
+    const blockPriceInput = document.getElementById("blockPrice");
+    const vehicleSelect = document.getElementById("vehicleCategory");
+    const rememberVehicleCheckbox = document.getElementById("rememberVehicle");
+    const gasPriceInput = document.getElementById("gasPrice");
+    const kwhPriceInput = document.getElementById("kwhPrice");
+    const vehicleHint = document.getElementById("vehicleHint");
+
+    const startBtn = document.getElementById("startBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const pdfBtn = document.getElementById("pdfBtn");
+
+    const statusText = document.getElementById("statusText");
+    const timeText = document.getElementById("timeText");
+    const milesText = document.getElementById("milesText");
+    const pointsText = document.getElementById("pointsText");
+
+    const summaryMiles = document.getElementById("summaryMiles");
+    const summaryTime = document.getElementById("summaryTime");
+    const summaryFuel = document.getElementById("summaryFuel");
+    const summaryFuelCost = document.getElementById("summaryFuelCost");
+    const summaryBlockPrice = document.getElementById("summaryBlockPrice");
+    const summaryNet = document.getElementById("summaryNet");
+    const summaryVerdict = document.getElementById("summaryVerdict");
+
+    const routeCanvas = document.getElementById("routeCanvas");
+    const routeCtx = routeCanvas.getContext("2d");
+    const logBox = document.getElementById("logBox");
+    const historyList = document.getElementById("historyList");
+
+    let trackingId = null;
+    let trackingPoints = [];
+    let startTime = null;
+    let timerInterval = null;
+    let lastSummary = null;
+
+    function loadHistory() {
+      try {
+        return JSON.parse(localStorage.getItem("kairos_block_history") || "[]");
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveHistoryEntry(entry) {
+      const history = loadHistory();
+      history.unshift(entry);
+      if (history.length > 20) history.length = 20;
+      localStorage.setItem("kairos_block_history", JSON.stringify(history));
+    }
+
+    function renderHistory() {
+      const history = loadHistory();
+      if (!history.length) {
+        historyList.textContent = "No hay bloques guardados todavía.";
+        return;
+      }
+      let html = "";
+      history.forEach(rec => {
+        const dt = new Date(rec.timestamp);
+        const dateStr = dt.toLocaleDateString() + " " +
+          dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        html += `<div style="margin-bottom:0.25rem;">
+          <span style="font-size:0.72rem;color:#6b7280;">${dateStr}</span><br/>
+          <span style="font-size:0.8rem;">${rec.vehicleName}</span> · 
+          <span style="font-size:0.8rem;">${rec.miles.toFixed(1)} mi</span> · 
+          <span style="font-size:0.8rem;">$${rec.net.toFixed(2)} neto</span> · 
+          <span style="font-size:0.8rem;">$${rec.netPerHour.toFixed(1)}/h</span>
+        </div>`;
+      });
+      historyList.innerHTML = html;
+    }
+
+    (function initFromStorage() {
+      const savedVehicle = localStorage.getItem("kairos_vehicle_category");
+      if (savedVehicle && VEHICLE_CATEGORIES[savedVehicle]) {
+        vehicleSelect.value = savedVehicle;
+        rememberVehicleCheckbox.checked = true;
+        updateVehicleHint();
+      }
+      renderHistory();
+    })();
+
+    vehicleSelect.addEventListener("change", updateVehicleHint);
+
+    function updateVehicleHint() {
+      const key = vehicleSelect.value;
+      if (!key || !VEHICLE_CATEGORIES[key]) {
+        vehicleHint.textContent = "Ejemplos y consumo estimado aparecerán aquí.";
+        return;
+      }
+      const v = VEHICLE_CATEGORIES[key];
+      if (v.fuelKind === "ev") {
+        const mi = v.miPerKwh || 3.0;
+        vehicleHint.textContent = `${v.examples} · Consumo estimado: ~${mi} mi/kWh`;
+      } else {
+        const mpg = v.mpg || 25;
+        vehicleHint.textContent = `${v.examples} · Consumo estimado: ~${mpg} mpg`;
+      }
+    }
+
+    function log(msg) {
+      const ts = new Date().toLocaleTimeString();
+      logBox.textContent += `[${ts}] ${msg}\n`;
+      logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function formatTime(ms) {
+      const totalSec = Math.floor(ms / 1000);
+      const h = String(Math.floor(totalSec / 3600)).padStart(2, "0");
+      const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, "0");
+      const s = String(totalSec % 60).padStart(2, "0");
+      return `${h}:${m}:${s}`;
+    }
+
+    function haversine(lat1, lon1, lat2, lon2) {
+      const R = 6371e3;
+      const toRad = x => x * Math.PI / 180;
+      const φ1 = toRad(lat1);
+      const φ2 = toRad(lat2);
+      const Δφ = toRad(lat2 - lat1);
+      const Δλ = toRad(lon2 - lon1);
+
+      const a = Math.sin(Δφ/2) ** 2 +
+                Math.cos(φ1) * Math.cos(φ2) *
+                Math.sin(Δλ/2) ** 2;
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const d = R * c;
+      return d / 1609.34;
+    }
+
+    function calculateTotalDistance(points) {
+      if (points.length < 2) return 0;
+      let total = 0;
+      for (let i = 1; i < points.length; i++) {
+        const a = points[i - 1];
+        const b = points[i];
+        total += haversine(a.lat, a.lon, b.lat, b.lon);
+      }
+      return total;
+    }
+
+    function updateTimer() {
+      if (!startTime) return;
+      const now = Date.now();
+      timeText.textContent = formatTime(now - startTime);
+    }
+
+    function resetRouteCanvas() {
+      routeCtx.clearRect(0, 0, routeCanvas.width, routeCanvas.height);
+      routeCtx.fillStyle = "#020617";
+      routeCtx.fillRect(0, 0, routeCanvas.width, routeCanvas.height);
+      routeCtx.strokeStyle = "#0b1220";
+      routeCtx.lineWidth = 1;
+      for (let x = 30; x < routeCanvas.width; x += 30) {
+        routeCtx.beginPath();
+        routeCtx.moveTo(x, 0);
+        routeCtx.lineTo(x, routeCanvas.height);
+        routeCtx.stroke();
+      }
+      for (let y = 30; y < routeCanvas.height; y += 30) {
+        routeCtx.beginPath();
+        routeCtx.moveTo(0, y);
+        routeCtx.lineTo(routeCanvas.width, y);
+        routeCtx.stroke();
+      }
+      routeCtx.fillStyle = "#6b7280";
+      routeCtx.font = "10px system-ui";
+      routeCtx.fillText("La ruta aparecerá aquí al finalizar el bloque", 10, routeCanvas.height - 10);
+    }
+
+    function drawRoute(points) {
+      resetRouteCanvas();
+      if (points.length < 2) {
+        routeCtx.fillStyle = "#9ca3af";
+        routeCtx.font = "10px system-ui";
+        routeCtx.fillText("No hay suficientes puntos para dibujar la ruta.", 10, 20);
+        return;
+      }
+
+      const lats = points.map(p => p.lat);
+      const lons = points.map(p => p.lon);
+      const minLat = Math.min(...lats);
+      const maxLat = Math.max(...lats);
+      const minLon = Math.min(...lons);
+      const maxLon = Math.max(...lons);
+
+      const padding = 22;
+      const w = routeCanvas.width - padding * 2;
+      const h = routeCanvas.height - padding * 2;
+
+      const latRange = maxLat - minLat || 0.0001;
+      const lonRange = maxLon - minLon || 0.0001;
+
+      function project(p) {
+        const x = padding + ((p.lon - minLon) / lonRange) * w;
+        const y = padding + (1 - (p.lat - minLat) / latRange) * h;
+        return { x, y };
+      }
+
+      routeCtx.lineWidth = 4;
+      routeCtx.strokeStyle = "rgba(34, 197, 94, 0.35)";
+      routeCtx.beginPath();
+      let pr = project(points[0]);
+      routeCtx.moveTo(pr.x, pr.y);
+      for (let i = 1; i < points.length; i++) {
+        pr = project(points[i]);
+        routeCtx.lineTo(pr.x, pr.y);
+      }
+      routeCtx.stroke();
+
+      routeCtx.lineWidth = 2;
+      routeCtx.strokeStyle = "#22c55e";
+      routeCtx.beginPath();
+      const first = project(points[0]);
+      routeCtx.moveTo(first.x, first.y);
+      for (let i = 1; i < points.length; i++) {
+        const p = project(points[i]);
+        routeCtx.lineTo(p.x, p.y);
+      }
+      routeCtx.stroke();
+
+      const start = project(points[0]);
+      routeCtx.fillStyle = "#22c55e";
+      routeCtx.beginPath();
+      routeCtx.arc(start.x, start.y, 5, 0, Math.PI * 2);
+      routeCtx.fill();
+
+      const end = project(points[points.length - 1]);
+      routeCtx.fillStyle = "#ef4444";
+      routeCtx.beginPath();
+      routeCtx.arc(end.x, end.y, 5, 0, Math.PI * 2);
+      routeCtx.fill();
+
+      routeCtx.fillStyle = "#9ca3af";
+      routeCtx.font = "10px system-ui";
+      routeCtx.fillText("Inicio", start.x + 6, start.y - 4);
+      routeCtx.fillText("Fin", end.x + 6, end.y - 4);
+    }
+
+    resetRouteCanvas();
+
+    startBtn.addEventListener("click", () => {
+      const price = parseFloat(blockPriceInput.value || "0");
+      const vehicleKey = vehicleSelect.value;
+      const vehicle = VEHICLE_CATEGORIES[vehicleKey];
+
+      if (!price || price <= 0) {
+        alert("Coloca un precio válido para el bloque.");
+        return;
+      }
+      if (!vehicleKey || !vehicle) {
+        alert("Selecciona un tipo de vehículo.");
+        return;
+      }
+
+      if (vehicle.fuelKind === "ev") {
+        const kwhPrice = parseFloat(kwhPriceInput.value || "0");
+        if (!kwhPrice || kwhPrice <= 0) {
+          alert("Coloca un precio válido por kWh para EV.");
+          return;
+        }
+      } else {
+        const gasPrice = parseFloat(gasPriceInput.value || "0");
+        if (!gasPrice || gasPrice <= 0) {
+          alert("Coloca un precio válido de combustible por galón.");
+          return;
+        }
+      }
+
+      if (!navigator.geolocation) {
+        alert("Este dispositivo no soporta geolocalización.");
+        return;
+      }
+
+      if (rememberVehicleCheckbox.checked) {
+        localStorage.setItem("kairos_vehicle_category", vehicleKey);
+      }
+
+      trackingPoints = [];
+      startTime = Date.now();
+      statusText.textContent = "Tracking en curso…";
+      statusText.className = "stat-value status-good";
+      timeText.textContent = "00:00:00";
+      milesText.textContent = "0.00 mi";
+      pointsText.textContent = "0";
+
+      summaryMiles.textContent = "—";
+      summaryTime.textContent = "—";
+      summaryFuel.textContent = "—";
+      summaryFuelCost.textContent = "—";
+      summaryBlockPrice.textContent = "—";
+      summaryNet.textContent = "—";
+      summaryVerdict.textContent = "—";
+      summaryVerdict.className = "";
+      pdfBtn.disabled = true;
+      lastSummary = null;
+
+      resetRouteCanvas();
+      logBox.textContent = "";
+      log("Bloque iniciado. Precio: $" + price.toFixed(2) + ", Vehículo: " + vehicle.name);
+
+      timerInterval = setInterval(updateTimer, 1000);
+
+      trackingId = navigator.geolocation.watchPosition(
+        pos => {
+          const { latitude, longitude } = pos.coords;
+          trackingPoints.push({ lat: latitude, lon: longitude, t: Date.now() });
+          const miles = calculateTotalDistance(trackingPoints);
+          milesText.textContent = miles.toFixed(2) + " mi";
+          pointsText.textContent = trackingPoints.length.toString();
+          log(`Punto ${trackingPoints.length}: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+        },
+        err => {
+          log("Error en geolocalización: " + err.message);
+        },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+      );
+
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+    });
+
+    stopBtn.addEventListener("click", () => {
+      if (!startTime) return;
+
+      if (trackingId !== null) {
+        navigator.geolocation.clearWatch(trackingId);
+        trackingId = null;
+      }
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+
+      const endTime = Date.now();
+      const elapsedMs = endTime - startTime;
+      timeText.textContent = formatTime(elapsedMs);
+
+      const miles = calculateTotalDistance(trackingPoints);
+      milesText.textContent = miles.toFixed(2) + " mi";
+      pointsText.textContent = trackingPoints.length.toString();
+
+      const price = parseFloat(blockPriceInput.value || "0");
+      const vehicleKey = vehicleSelect.value;
+      const vehicle = VEHICLE_CATEGORIES[vehicleKey];
+
+      let fuelLabel = "";
+      let fuelAmount = 0;
+      let fuelCost = 0;
+
+      if (vehicle.fuelKind === "ev") {
+        const miPerKwh = vehicle.miPerKwh || 3.0;
+        fuelAmount = miles > 0 ? miles / miPerKwh : 0;
+        const kwhPrice = parseFloat(kwhPriceInput.value || "0");
+        fuelCost = fuelAmount * kwhPrice;
+        fuelLabel = `${fuelAmount.toFixed(2)} kWh · ~${miPerKwh} mi/kWh`;
+      } else {
+        const mpg = vehicle.mpg || 25;
+        fuelAmount = miles > 0 ? miles / mpg : 0;
+        const gasPrice = parseFloat(gasPriceInput.value || "0");
+        fuelCost = fuelAmount * gasPrice;
+        fuelLabel = `${fuelAmount.toFixed(2)} gal · ~${mpg} mpg`;
+      }
+
+      const net = price - fuelCost;
+
+      summaryMiles.textContent = miles.toFixed(2) + " mi";
+      summaryTime.textContent = formatTime(elapsedMs);
+      summaryFuel.textContent = fuelLabel;
+      summaryFuelCost.textContent = fuelCost.toFixed(2) + " USD";
+      summaryBlockPrice.textContent = price.toFixed(2) + " USD";
+      summaryNet.textContent = net.toFixed(2) + " USD";
+
+      const hours = elapsedMs / 3600000;
+      const netPerHour = hours > 0 ? net / hours : 0;
+      let verdictText = `\$${netPerHour.toFixed(2)}/h`;
+      let verdictClass = "status-warn";
+      if (netPerHour >= 30) {
+        verdictText += " · BLOQUE MUY BUENO";
+        verdictClass = "status-good";
+      } else if (netPerHour >= 22) {
+        verdictText += " · BLOQUE DECENTE";
+        verdictClass = "status-warn";
+      } else {
+        verdictText += " · BLOQUE FLOJO";
+        verdictClass = "status-bad";
+      }
+      summaryVerdict.textContent = verdictText;
+      summaryVerdict.className = verdictClass;
+
+      statusText.textContent = "Bloque finalizado";
+      statusText.className = "stat-value";
+
+      drawRoute(trackingPoints);
+
+      log(`Bloque finalizado. Millas: ${miles.toFixed(2)} mi, consumo: ${fuelLabel}, costo: $${fuelCost.toFixed(2)}, neto: $${net.toFixed(2)}, $/h: ${netPerHour.toFixed(2)}`);
+
+      lastSummary = {
+        timestamp: new Date().toISOString(),
+        vehicleKey,
+        vehicleName: vehicle.name,
+        miles,
+        elapsedMs,
+        fuelKind: vehicle.fuelKind,
+        fuelLabel,
+        fuelAmount,
+        fuelCost,
+        blockPrice: price,
+        net,
+        netPerHour
+      };
+
+      saveHistoryEntry({
+        timestamp: lastSummary.timestamp,
+        vehicleName: lastSummary.vehicleName,
+        miles: lastSummary.miles,
+        net: lastSummary.net,
+        netPerHour: lastSummary.netPerHour
+      });
+      renderHistory();
+
+      pdfBtn.disabled = false;
+      startTime = null;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+
+    pdfBtn.addEventListener("click", () => {
+      if (!lastSummary) {
+        alert("No hay datos del último bloque para el PDF.");
+        return;
+      }
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        alert("jsPDF no está disponible.");
+        return;
+      }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 10;
+
+      doc.setFontSize(14);
+      doc.text("Kairos Block Report", 10, y);
+      y += 8;
+
+      doc.setFontSize(10);
+      const dt = new Date(lastSummary.timestamp);
+      doc.text("Fecha: " + dt.toLocaleString(), 10, y); y += 5;
+      doc.text("Vehículo: " + lastSummary.vehicleName, 10, y); y += 5;
+      doc.text("Distancia: " + lastSummary.miles.toFixed(2) + " mi", 10, y); y += 5;
+      doc.text("Tiempo: " + formatTime(lastSummary.elapsedMs), 10, y); y += 5;
+      doc.text("Consumo: " + lastSummary.fuelLabel, 10, y); y += 5;
+      doc.text("Costo combustible/energía: $" + lastSummary.fuelCost.toFixed(2), 10, y); y += 5;
+      doc.text("Precio bloque: $" + lastSummary.blockPrice.toFixed(2), 10, y); y += 5;
+      doc.text("Ganancia neta: $" + lastSummary.net.toFixed(2), 10, y); y += 5;
+      const netPerHour = lastSummary.netPerHour;
+      doc.text("Neto por hora: $" + netPerHour.toFixed(2) + "/h", 10, y); y += 8;
+
+      // Añadir imagen de la ruta (canvas)
+      try {
+        const imgData = routeCanvas.toDataURL("image/png");
+        doc.text("Ruta del bloque:", 10, y); y += 4;
+        doc.addImage(imgData, "PNG", 10, y, 180, 60);
+      } catch (e) {
+        // Si algo falla con el canvas, solo omitimos la imagen
+      }
+
+      doc.save("Kairos_Block_Report.pdf");
+    });
+  </script>
+</body>
+</html>
+  </div>
+
+</body>
+</html>
