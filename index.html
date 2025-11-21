@@ -625,6 +625,9 @@
           </div>
         </div>
         <p class="small">
+          Inicio: <span id="summaryStartCity">—</span> · Fin: <span id="summaryEndCity">—</span>
+        </p>
+        <p class="small">
           Veredicto: <span id="summaryVerdict">—</span>
         </p>
         <button id="pdfBtn" class="secondary" disabled>Generar PDF (último bloque)</button>
@@ -743,6 +746,8 @@
     const summaryBlockPrice = document.getElementById("summaryBlockPrice");
     const summaryNet = document.getElementById("summaryNet");
     const summaryVerdict = document.getElementById("summaryVerdict");
+    const summaryStartCity = document.getElementById("summaryStartCity");
+    const summaryEndCity = document.getElementById("summaryEndCity");
 
     const routeCanvas = document.getElementById("routeCanvas");
     const routeCtx = routeCanvas.getContext("2d");
@@ -1008,6 +1013,26 @@
 
     resetRouteCanvas();
 
+    // --------- REVERSE GEOCODING (CIUDADES) ---------
+    async function reverseGeocode(lat, lon) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("HTTP " + resp.status);
+        const data = await resp.json();
+        const addr = data.address || {};
+        const city = addr.city || addr.town || addr.village || addr.hamlet;
+        const state = addr.state || addr.region || "";
+        if (city && state) return `${city}, ${state}`;
+        if (city) return city;
+        if (state) return state;
+        return data.display_name || "Ubicación desconocida";
+      } catch (e) {
+        console.warn("Error en reverse geocoding:", e);
+        return "Ubicación desconocida";
+      }
+    }
+
     // --------- EVENTOS ---------
     startBtn.addEventListener("click", () => {
       const price = parseFloat(blockPriceInput.value || "0");
@@ -1060,6 +1085,8 @@
       summaryFuelCost.textContent = "—";
       summaryBlockPrice.textContent = "—";
       summaryNet.textContent = "—";
+      summaryStartCity.textContent = "—";
+      summaryEndCity.textContent = "—";
       summaryVerdict.textContent = "—";
       summaryVerdict.className = "";
       pdfBtn.disabled = true;
@@ -1090,7 +1117,7 @@
       stopBtn.disabled = false;
     });
 
-    stopBtn.addEventListener("click", () => {
+    stopBtn.addEventListener("click", async () => {
       if (!startTime) return;
 
       if (trackingId !== null) {
@@ -1164,7 +1191,19 @@
       drawRoute(trackingPoints);
       updateLeafletMap(trackingPoints);
 
-      log(`Bloque finalizado. Millas: ${miles.toFixed(2)} mi, consumo: ${fuelLabel}, costo: $${fuelCost.toFixed(2)}, neto: $${net.toFixed(2)}, $/h: ${netPerHour.toFixed(2)}`);
+      // --- ciudades inicio / fin ---
+      let startCityLabel = "Ubicación desconocida";
+      let endCityLabel = "Ubicación desconocida";
+      if (trackingPoints.length) {
+        const startP = trackingPoints[0];
+        const endP = trackingPoints[trackingPoints.length - 1];
+        startCityLabel = await reverseGeocode(startP.lat, startP.lon);
+        endCityLabel = await reverseGeocode(endP.lat, endP.lon);
+      }
+      summaryStartCity.textContent = startCityLabel;
+      summaryEndCity.textContent = endCityLabel;
+
+      log(`Bloque finalizado. Millas: ${miles.toFixed(2)} mi, consumo: ${fuelLabel}, costo: $${fuelCost.toFixed(2)}, neto: $${net.toFixed(2)}, $/h: ${netPerHour.toFixed(2)}, Inicio: ${startCityLabel}, Fin: ${endCityLabel}`);
 
       lastSummary = {
         timestamp: new Date().toISOString(),
@@ -1178,7 +1217,9 @@
         fuelCost,
         blockPrice: price,
         net,
-        netPerHour
+        netPerHour,
+        startCity: startCityLabel,
+        endCity: endCityLabel
       };
 
       saveHistoryEntry({
@@ -1226,6 +1267,8 @@
       const dt = new Date(lastSummary.timestamp);
       doc.text("Fecha: " + dt.toLocaleString(), 10, y); y += 5;
       doc.text("Vehículo: " + lastSummary.vehicleName, 10, y); y += 5;
+      doc.text("Ciudad inicio: " + (lastSummary.startCity || "—"), 10, y); y += 5;
+      doc.text("Ciudad fin: " + (lastSummary.endCity || "—"), 10, y); y += 5;
       doc.text("Distancia: " + lastSummary.miles.toFixed(2) + " mi", 10, y); y += 5;
       doc.text("Tiempo: " + formatTime(lastSummary.elapsedMs), 10, y); y += 5;
       doc.text("Consumo: " + lastSummary.fuelLabel, 10, y); y += 5;
