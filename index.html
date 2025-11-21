@@ -2,26 +2,39 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Kairos Block Tracker – HUD</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
   <!-- Manifest PWA -->
   <link rel="manifest" href="manifest.json">
 
-  <!-- iOS: Hacerlo fullscreen -->
+  <!-- iOS fullscreen -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
 
-  <!-- Splash CSS -->
+  <!-- jsPDF para el PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Leaflet (mapa real) -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+  </script>
+
   <style>
-    body, html {
-  margin: 0; 
-  padding: 0;
-  background: #020617;
-  color: white;
-  overflow-x: hidden;
-  overflow-y: auto; 
+    /* ----------- LAYOUT GLOBAL + SPLASH ----------- */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #020617;
+      color: white;
+      overflow-x: hidden;
+      overflow-y: auto; /* 👈 permite scroll */
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     #splash {
@@ -34,11 +47,10 @@
       justify-content: center;
       z-index: 9999;
       text-align: center;
-      font-family: system-ui, sans-serif;
-      animation: fadeOut 1s ease 3.4s forwards;
+      animation: splashFadeOut 1s ease 3.4s forwards;
     }
 
-    @keyframes fadeOut {
+    @keyframes splashFadeOut {
       to { opacity: 0; visibility: hidden; }
     }
 
@@ -72,56 +84,18 @@
       color: #9ca3af;
     }
 
-    /* Contenedor real de la app (oculto durante splash) */
     #app {
       visibility: hidden;
       opacity: 0;
       transition: opacity 0.8s ease;
     }
-
     #app.ready {
       visibility: visible;
       opacity: 1;
     }
-  </style>
 
-  <script>
-    // Mostrar app cuando termina splash
-    window.addEventListener("load", () => {
-      setTimeout(() => {
-        document.getElementById("app").classList.add("ready");
-      }, 3100);
-    });
-
-    // Instalar service worker
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("service-worker.js");
-    }
-  </script>
-</head>
-
-<body>
-
-  <!-- 🟢 SPLASH SCREEN -->
-  <div id="splash">
-    <div class="loader"></div>
-    <div class="splash-title">Inicializando sistemas...</div>
-    <div class="splash-sub">Kairos HUD Driver Telemetry</div>
-  </div>
-
-  <!-- 🟢 APP REAL (tu HUD futurista) -->
-  <div id="app">
-    <!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <title>Kairos Block Tracker – Futuristic HUD</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <!-- jsPDF para el PDF -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <style>
+    /* ----------- FONDO PRINCIPAL ----------- */
     :root {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       color-scheme: dark;
       --bg-main: #020617;
       --bg-card: rgba(15, 23, 42, 0.85);
@@ -133,17 +107,14 @@
       --text-muted: #9ca3af;
       --text-soft: #6b7280;
       --danger: #ef4444;
-      --danger-soft: rgba(239, 68, 68, 0.4);
     }
 
     body {
-      margin: 0;
       min-height: 100vh;
       background:
         radial-gradient(circle at 10% 0%, #0f172a 0, transparent 45%),
         radial-gradient(circle at 90% 100%, #16a34a33 0, transparent 50%),
         radial-gradient(circle at 50% 120%, #1e293b 0, #020617 60%);
-      color: var(--text-main);
       display: flex;
       justify-content: center;
       padding: 1rem;
@@ -173,6 +144,7 @@
       z-index: -1;
     }
 
+    /* ----------- CONTENEDOR APP ----------- */
     .app {
       width: 100%;
       max-width: 980px;
@@ -209,11 +181,7 @@
       margin-bottom: 0.75rem;
     }
 
-    .logo-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
+    .logo-wrap { display: flex; align-items: center; gap: 0.6rem; }
 
     .logo-orbit {
       width: 32px;
@@ -331,10 +299,7 @@
       letter-spacing: normal;
     }
 
-    .small {
-      font-size: 0.75rem;
-      color: var(--text-soft);
-    }
+    .small { font-size: 0.75rem; color: var(--text-soft); }
 
     label {
       display: block;
@@ -413,7 +378,6 @@
       opacity: 0;
       transition: opacity 0.2s linear;
     }
-
     button:hover::before { opacity: 1; }
 
     .primary {
@@ -423,7 +387,6 @@
         0 0 16px rgba(34, 197, 94, 0.7),
         0 0 2px rgba(34, 197, 94, 0.9) inset;
     }
-
     .primary:disabled {
       background: radial-gradient(circle at center, #14532d, #052e16);
       color: #4ade80;
@@ -439,7 +402,6 @@
         0 0 14px rgba(239, 68, 68, 0.6),
         0 0 2px rgba(127, 29, 29, 0.95) inset;
     }
-
     .danger:disabled {
       background: radial-gradient(circle at center, #450a0a, #111827);
       color: #fecaca;
@@ -517,162 +479,195 @@
       h1 { font-size: 1.05rem; }
     }
   </style>
-</head>
-<body>
-  <div class="app">
-    <!-- HEADER -->
-    <div class="header">
-      <div class="logo-wrap">
-        <div class="logo-orbit"><div class="logo-dot"></div></div>
-        <div>
-          <h1>Kairos Block Tracker</h1>
-          <p class="subtitle">Telemetría de bloques: millas, consumo y ganancia en tiempo real.</p>
-        </div>
-      </div>
-      <div class="badge">OTTOLEO · DRIVER HUD</div>
-    </div>
 
-    <!-- CONFIGURACIÓN BÁSICA -->
-    <div class="card">
-      <div class="card-title">
-        DATOS DEL BLOQUE
-        <span>Entrada mínima · el resto es automático</span>
-      </div>
-      <div class="row">
-        <div>
-          <label for="blockPrice">Precio del bloque (USD)</label>
-          <input id="blockPrice" type="number" min="0" step="0.01" placeholder="Ej: 84.00" />
-        </div>
-        <div>
-          <label for="vehicleCategory">Tipo de vehículo</label>
-          <select id="vehicleCategory">
-            <option value="">Selecciona categoría…</option>
-            <option value="sedan">Sedán – (Corolla, Civic, Elantra)</option>
-            <option value="sedan_mid">Sedán medio – (Sonata, Accord, Camry)</option>
-            <option value="sedan_large">Sedán grande – (Charger, Chrysler 300)</option>
-            <option value="suv_compact">SUV compacta – (Kona, Kicks, Crosstrek)</option>
-            <option value="suv">SUV – (Santa Fe, Sorento, Murano)</option>
-            <option value="suv_large">SUV grande – (Suburban, Expedition, Tahoe)</option>
-            <option value="hybrid">Híbrido – (Sonata Hybrid, Prius, Ioniq Hybrid)</option>
-            <option value="ev">EV – (Ioniq 5, Kona EV, Tesla Model 3)</option>
-          </select>
-          <p class="vehicle-hint small" id="vehicleHint">
-            Ejemplos y consumo estimado aparecerán aquí.
-          </p>
-          <div class="checkbox-row">
-            <input type="checkbox" id="rememberVehicle" />
-            <label for="rememberVehicle" style="margin:0;font-size:0.75rem;">Recordar este vehículo para próximos bloques</label>
+  <script>
+    // Mostrar app cuando termina splash
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        document.getElementById("app").classList.add("ready");
+      }, 3100);
+    });
+
+    // Registrar service worker para PWA
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("service-worker.js");
+    }
+  </script>
+</head>
+
+<body>
+  <!-- SPLASH -->
+  <div id="splash">
+    <div class="loader"></div>
+    <div class="splash-title">Inicializando sistemas...</div>
+    <div class="splash-sub">Kairos HUD Driver Telemetry</div>
+  </div>
+
+  <!-- APP REAL -->
+  <div id="app">
+    <div class="app">
+      <!-- HEADER -->
+      <div class="header">
+        <div class="logo-wrap">
+          <div class="logo-orbit"><div class="logo-dot"></div></div>
+          <div>
+            <h1>Kairos Block Tracker</h1>
+            <p class="subtitle">Telemetría de bloques: millas, consumo y ganancia en tiempo real.</p>
           </div>
         </div>
-        <div>
-          <label for="gasPrice">Precio promedio del galón (USD)</label>
-          <input id="gasPrice" type="number" min="0" step="0.01" value="3.50" />
-          <p class="small">Se usa para estimar el costo del combustible (gas/híbrido).</p>
-          <label for="kwhPrice" style="margin-top:0.4rem;">Precio promedio kWh (USD)</label>
-          <input id="kwhPrice" type="number" min="0" step="0.01" value="0.17" />
-          <p class="small">Se usa para estimar el costo de energía (EV).</p>
+        <div class="badge">OTTOLEO · DRIVER HUD</div>
+      </div>
+
+      <!-- CONFIGURACIÓN BÁSICA -->
+      <div class="card">
+        <div class="card-title">
+          DATOS DEL BLOQUE
+          <span>Entrada mínima · el resto es automático</span>
+        </div>
+        <div class="row">
+          <div>
+            <label for="blockPrice">Precio del bloque (USD)</label>
+            <input id="blockPrice" type="number" min="0" step="0.01" placeholder="Ej: 84.00" />
+          </div>
+          <div>
+            <label for="vehicleCategory">Tipo de vehículo</label>
+            <select id="vehicleCategory">
+              <option value="">Selecciona categoría…</option>
+              <option value="sedan">Sedán – (Corolla, Civic, Elantra)</option>
+              <option value="sedan_mid">Sedán medio – (Sonata, Accord, Camry)</option>
+              <option value="sedan_large">Sedán grande – (Charger, Chrysler 300)</option>
+              <option value="suv_compact">SUV compacta – (Kona, Kicks, Crosstrek)</option>
+              <option value="suv">SUV – (Santa Fe, Sorento, Murano)</option>
+              <option value="suv_large">SUV grande – (Suburban, Expedition, Tahoe)</option>
+              <option value="hybrid">Híbrido – (Sonata Hybrid, Prius, Ioniq Hybrid)</option>
+              <option value="ev">EV – (Ioniq 5, Kona EV, Tesla Model 3)</option>
+            </select>
+            <p class="vehicle-hint small" id="vehicleHint">
+              Ejemplos y consumo estimado aparecerán aquí.
+            </p>
+            <div class="checkbox-row">
+              <input type="checkbox" id="rememberVehicle" />
+              <label for="rememberVehicle" style="margin:0;font-size:0.75rem;">
+                Recordar este vehículo para próximos bloques
+              </label>
+            </div>
+          </div>
+          <div>
+            <label for="gasPrice">Precio promedio del galón (USD)</label>
+            <input id="gasPrice" type="number" min="0" step="0.01" value="3.50" />
+            <p class="small">Se usa para estimar el costo del combustible (gas/híbrido).</p>
+            <label for="kwhPrice" style="margin-top:0.4rem;">Precio promedio kWh (USD)</label>
+            <input id="kwhPrice" type="number" min="0" step="0.01" value="0.17" />
+            <p class="small">Se usa para estimar el costo de energía (EV).</p>
+          </div>
+        </div>
+
+        <button id="startBtn" class="primary">Iniciar bloque</button>
+        <button id="stopBtn" class="danger" disabled>Finalizar bloque</button>
+      </div>
+
+      <!-- BLOQUE EN CURSO -->
+      <div class="card">
+        <div class="card-title">
+          BLOQUE EN CURSO
+          <span>Tracking GPS · mantén esta ventana abierta</span>
+        </div>
+        <div class="stats-grid">
+          <div>
+            <div class="stat-label">Estado</div>
+            <div class="stat-value" id="statusText">En espera</div>
+          </div>
+          <div>
+            <div class="stat-label">Tiempo transcurrido</div>
+            <div class="stat-value" id="timeText">00:00:00</div>
+          </div>
+          <div>
+            <div class="stat-label">Millas (tracking)</div>
+            <div class="stat-value" id="milesText">0.00 mi</div>
+          </div>
+          <div>
+            <div class="stat-label">Puntos GPS</div>
+            <div class="stat-value" id="pointsText">0</div>
+          </div>
         </div>
       </div>
 
-      <button id="startBtn" class="primary">Iniciar bloque</button>
-      <button id="stopBtn" class="danger" disabled>Finalizar bloque</button>
-    </div>
+      <!-- RESUMEN -->
+      <div class="card">
+        <div class="card-title">
+          RESUMEN DEL BLOQUE
+          <span>Se actualiza al finalizar el tracking</span>
+        </div>
+        <div class="stats-grid">
+          <div>
+            <div class="stat-label">Distancia recorrida</div>
+            <div class="stat-value" id="summaryMiles">—</div>
+          </div>
+          <div>
+            <div class="stat-label">Tiempo total</div>
+            <div class="stat-value" id="summaryTime">—</div>
+          </div>
+          <div>
+            <div class="stat-label">Consumo estimado</div>
+            <div class="stat-value" id="summaryFuel">—</div>
+          </div>
+          <div>
+            <div class="stat-label">Costo combustible / energía</div>
+            <div class="stat-value" id="summaryFuelCost">—</div>
+          </div>
+          <div>
+            <div class="stat-label">Precio bloque</div>
+            <div class="stat-value" id="summaryBlockPrice">—</div>
+          </div>
+          <div>
+            <div class="stat-label">Ganancia neta aprox.</div>
+            <div class="stat-value" id="summaryNet">—</div>
+          </div>
+        </div>
+        <p class="small">
+          Veredicto: <span id="summaryVerdict">—</span>
+        </p>
+        <button id="pdfBtn" class="secondary" disabled>Generar PDF (último bloque)</button>
+      </div>
 
-    <!-- BLOQUE EN CURSO -->
-    <div class="card">
-      <div class="card-title">
-        BLOQUE EN CURSO
-        <span>Tracking GPS · mantén esta ventana abierta</span>
-      </div>
-      <div class="stats-grid">
-        <div>
-          <div class="stat-label">Estado</div>
-          <div class="stat-value" id="statusText">En espera</div>
+      <!-- MAPA + HUD -->
+      <div class="card">
+        <div class="card-title">
+          RUTA DEL BLOQUE
+          <span>Mapa real + HUD minimalista</span>
         </div>
-        <div>
-          <div class="stat-label">Tiempo transcurrido</div>
-          <div class="stat-value" id="timeText">00:00:00</div>
-        </div>
-        <div>
-          <div class="stat-label">Millas (tracking)</div>
-          <div class="stat-value" id="milesText">0.00 mi</div>
-        </div>
-        <div>
-          <div class="stat-label">Puntos GPS</div>
-          <div class="stat-value" id="pointsText">0</div>
-        </div>
-      </div>
-    </div>
+        <p class="small">Mapa arriba (Leaflet / OpenStreetMap) y debajo vista HUD para el PDF.</p>
 
-    <!-- RESUMEN -->
-    <div class="card">
-      <div class="card-title">
-        RESUMEN DEL BLOQUE
-        <span>Se actualiza al finalizar el tracking</span>
-      </div>
-      <div class="stats-grid">
-        <div>
-          <div class="stat-label">Distancia recorrida</div>
-          <div class="stat-value" id="summaryMiles">—</div>
-        </div>
-        <div>
-          <div class="stat-label">Tiempo total</div>
-          <div class="stat-value" id="summaryTime">—</div>
-        </div>
-        <div>
-          <div class="stat-label">Consumo estimado</div>
-          <div class="stat-value" id="summaryFuel">—</div>
-        </div>
-        <div>
-          <div class="stat-label">Costo combustible / energía</div>
-          <div class="stat-value" id="summaryFuelCost">—</div>
-        </div>
-        <div>
-          <div class="stat-label">Precio bloque</div>
-          <div class="stat-value" id="summaryBlockPrice">—</div>
-        </div>
-        <div>
-          <div class="stat-label">Ganancia neta aprox.</div>
-          <div class="stat-value" id="summaryNet">—</div>
-        </div>
-      </div>
-      <p class="small">
-        Veredicto: <span id="summaryVerdict">—</span>
-      </p>
-      <button id="pdfBtn" class="secondary" disabled>Generar PDF (último bloque)</button>
-    </div>
+        <!-- Mapa Leaflet -->
+        <div id="leafletMap"
+             style="width:100%;height:260px;border-radius:14px;overflow:hidden;margin-bottom:0.5rem;"></div>
 
-    <!-- MAPA MINIMALISTA -->
-    <div class="card">
-      <div class="card-title">
-        RUTA DEL BLOQUE
-        <span>HUD minimalista de la trayectoria</span>
+        <!-- Canvas HUD -->
+        <canvas id="routeCanvas" width="600" height="200"></canvas>
       </div>
-      <p class="small">Se dibuja a partir de los puntos GPS capturados durante el bloque.</p>
-      <canvas id="routeCanvas" width="600" height="240"></canvas>
-    </div>
 
-    <!-- HISTORIAL -->
-    <div class="card">
-      <div class="card-title">
-        HISTORIAL RECIENTE
-        <span>Últimos bloques en este dispositivo</span>
+      <!-- HISTORIAL -->
+      <div class="card">
+        <div class="card-title">
+          HISTORIAL RECIENTE
+          <span>Últimos bloques en este dispositivo</span>
+        </div>
+        <div class="small" id="historyList">No hay bloques guardados todavía.</div>
       </div>
-      <div class="small" id="historyList">No hay bloques guardados todavía.</div>
-    </div>
 
-    <!-- LOG -->
-    <div class="card">
-      <div class="card-title">
-        LOG DE TRACKING
-        <span>Para debug / revisar puntos registrados</span>
+      <!-- LOG -->
+      <div class="card">
+        <div class="card-title">
+          LOG DE TRACKING
+          <span>Para debug / revisar puntos registrados</span>
+        </div>
+        <div class="log" id="logBox"></div>
       </div>
-      <div class="log" id="logBox"></div>
     </div>
   </div>
 
   <script>
-    // Categorías de vehículo con tipo de energía
+    // --------- CONFIG VEHÍCULOS ---------
     const VEHICLE_CATEGORIES = {
       sedan: {
         name: "Sedán",
@@ -724,6 +719,7 @@
       }
     };
 
+    // --------- DOM ---------
     const blockPriceInput = document.getElementById("blockPrice");
     const vehicleSelect = document.getElementById("vehicleCategory");
     const rememberVehicleCheckbox = document.getElementById("rememberVehicle");
@@ -759,6 +755,13 @@
     let timerInterval = null;
     let lastSummary = null;
 
+    // Leaflet
+    let leafletMap = null;
+    let leafletRoute = null;
+    let leafletStartMarker = null;
+    let leafletEndMarker = null;
+
+    // --------- HISTORIAL ---------
     function loadHistory() {
       try {
         return JSON.parse(localStorage.getItem("kairos_block_history") || "[]");
@@ -806,6 +809,7 @@
       renderHistory();
     })();
 
+    // --------- UTILIDADES ---------
     vehicleSelect.addEventListener("change", updateVehicleHint);
 
     function updateVehicleHint() {
@@ -963,8 +967,48 @@
       routeCtx.fillText("Fin", end.x + 6, end.y - 4);
     }
 
+    function updateLeafletMap(points) {
+      if (!points.length) return;
+
+      const latlngs = points.map(p => [p.lat, p.lon]);
+
+      if (!leafletMap) {
+        leafletMap = L.map("leafletMap");
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 19,
+          attribution: "© OpenStreetMap"
+        }).addTo(leafletMap);
+      }
+
+      if (leafletRoute) leafletMap.removeLayer(leafletRoute);
+      if (leafletStartMarker) leafletMap.removeLayer(leafletStartMarker);
+      if (leafletEndMarker) leafletMap.removeLayer(leafletEndMarker);
+
+      leafletRoute = L.polyline(latlngs, {
+        color: "#22c55e",
+        weight: 4
+      }).addTo(leafletMap);
+
+      leafletStartMarker = L.circleMarker(latlngs[0], {
+        radius: 6,
+        color: "#22c55e",
+        fillColor: "#22c55e",
+        fillOpacity: 1
+      }).addTo(leafletMap);
+
+      leafletEndMarker = L.circleMarker(latlngs[latlngs.length - 1], {
+        radius: 6,
+        color: "#ef4444",
+        fillColor: "#ef4444",
+        fillOpacity: 1
+      }).addTo(leafletMap);
+
+      leafletMap.fitBounds(leafletRoute.getBounds(), { padding: [20, 20] });
+    }
+
     resetRouteCanvas();
 
+    // --------- EVENTOS ---------
     startBtn.addEventListener("click", () => {
       const price = parseFloat(blockPriceInput.value || "0");
       const vehicleKey = vehicleSelect.value;
@@ -1118,6 +1162,7 @@
       statusText.className = "stat-value";
 
       drawRoute(trackingPoints);
+      updateLeafletMap(trackingPoints);
 
       log(`Bloque finalizado. Millas: ${miles.toFixed(2)} mi, consumo: ${fuelLabel}, costo: $${fuelCost.toFixed(2)}, neto: $${net.toFixed(2)}, $/h: ${netPerHour.toFixed(2)}`);
 
@@ -1151,17 +1196,26 @@
       stopBtn.disabled = true;
     });
 
+    // --------- PDF ---------
     pdfBtn.addEventListener("click", () => {
       if (!lastSummary) {
         alert("No hay datos del último bloque para el PDF.");
         return;
       }
-      if (!window.jspdf || !window.jspdf.jsPDF) {
-        alert("jsPDF no está disponible.");
+
+      let jsPDFConstructor = null;
+      if (window.jspdf && window.jspdf.jsPDF) {
+        jsPDFConstructor = window.jspdf.jsPDF;
+      } else if (window.jsPDF) {
+        jsPDFConstructor = window.jsPDF;
+      }
+
+      if (!jsPDFConstructor) {
+        alert("jsPDF no está disponible (la librería no cargó correctamente).");
         return;
       }
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF();
+
+      const doc = new jsPDFConstructor();
       let y = 10;
 
       doc.setFontSize(14);
@@ -1181,21 +1235,16 @@
       const netPerHour = lastSummary.netPerHour;
       doc.text("Neto por hora: $" + netPerHour.toFixed(2) + "/h", 10, y); y += 8;
 
-      // Añadir imagen de la ruta (canvas)
       try {
         const imgData = routeCanvas.toDataURL("image/png");
         doc.text("Ruta del bloque:", 10, y); y += 4;
         doc.addImage(imgData, "PNG", 10, y, 180, 60);
       } catch (e) {
-        // Si algo falla con el canvas, solo omitimos la imagen
+        // si falla canvas, seguimos sin imagen
       }
 
       doc.save("Kairos_Block_Report.pdf");
     });
   </script>
-</body>
-</html>
-  </div>
-
 </body>
 </html>
