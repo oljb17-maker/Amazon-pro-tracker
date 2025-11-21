@@ -543,6 +543,23 @@
             <label for="blockPrice">Precio del bloque (USD)</label>
             <input id="blockPrice" type="number" min="0" step="0.01" placeholder="Ej: 84.00" />
           </div>
+
+          <div>
+            <label for="blockDuration">Duración oficial (horas Amazon)</label>
+            <select id="blockDuration">
+              <option value="">Selecciona duración…</option>
+              <option value="1">1.0 h</option>
+              <option value="2">2.0 h</option>
+              <option value="2.5">2.5 h</option>
+              <option value="3">3.0 h</option>
+              <option value="3.5" selected>3.5 h</option>
+              <option value="4">4.0 h</option>
+              <option value="4.5">4.5 h</option>
+              <option value="5">5.0 h</option>
+            </select>
+            <p class="small">Se usa para controlar tus 40h semanales de Amazon Flex.</p>
+          </div>
+
           <div>
             <label for="vehicleCategory">Tipo de vehículo</label>
             <select id="vehicleCategory">
@@ -566,6 +583,7 @@
               </label>
             </div>
           </div>
+
           <div>
             <label for="gasPrice">Precio promedio del galón (USD)</label>
             <input id="gasPrice" type="number" min="0" step="0.01" value="3.50" />
@@ -606,7 +624,7 @@
         </div>
       </div>
 
-      <!-- RESUMEN -->
+      <!-- RESUMEN DEL BLOQUE -->
       <div class="card">
         <div class="card-title">
           RESUMEN DEL BLOQUE
@@ -620,6 +638,10 @@
           <div>
             <div class="stat-label">Tiempo total</div>
             <div class="stat-value" id="summaryTime">—</div>
+          </div>
+          <div>
+            <div class="stat-label">Duración oficial (Amazon)</div>
+            <div class="stat-value" id="summaryOfficialDuration">—</div>
           </div>
           <div>
             <div class="stat-label">Consumo estimado</div>
@@ -645,6 +667,36 @@
           Veredicto: <span id="summaryVerdict">—</span>
         </p>
         <button id="pdfBtn" class="secondary" disabled>Generar PDF (último bloque)</button>
+      </div>
+
+      <!-- RESUMEN SEMANAL AMAZON -->
+      <div class="card">
+        <div class="card-title">
+          RESUMEN SEMANAL AMAZON
+          <span>Basado en bloques guardados esta semana</span>
+        </div>
+        <div class="row">
+          <div>
+            <label for="weeklyLimit">Límite semanal (horas oficiales)</label>
+            <input id="weeklyLimit" type="number" min="1" step="0.5" value="40" />
+            <p class="small">Por defecto 40 h Amazon Flex. Ajusta si alguna vez cambia tu límite.</p>
+          </div>
+          <div>
+            <div class="stat-label">Horas usadas esta semana</div>
+            <div class="stat-value" id="weeklyHoursUsed">—</div>
+            <div class="stat-label" style="margin-top:0.35rem;">Bloques registrados</div>
+            <div class="stat-value" id="weeklyBlocksCount">—</div>
+          </div>
+          <div>
+            <div class="stat-label">Horas disponibles</div>
+            <div class="stat-value" id="weeklyHoursLeft">—</div>
+            <div class="stat-label" style="margin-top:0.35rem;">Bloques 3.5h disponibles</div>
+            <div class="stat-value" id="weeklyBlocksLeft">—</div>
+          </div>
+        </div>
+        <p class="small">
+          Semana actual (dom–sáb) desde: <span id="weekStartLabel">—</span>
+        </p>
       </div>
 
       <!-- MAPA + HUD -->
@@ -743,6 +795,7 @@
 
     // --------- DOM ---------
     const blockPriceInput = document.getElementById("blockPrice");
+    const blockDurationSelect = document.getElementById("blockDuration");
     const vehicleSelect = document.getElementById("vehicleCategory");
     const rememberVehicleCheckbox = document.getElementById("rememberVehicle");
     const gasPriceInput = document.getElementById("gasPrice");
@@ -760,6 +813,7 @@
 
     const summaryMiles = document.getElementById("summaryMiles");
     const summaryTime = document.getElementById("summaryTime");
+    const summaryOfficialDuration = document.getElementById("summaryOfficialDuration");
     const summaryFuel = document.getElementById("summaryFuel");
     const summaryFuelCost = document.getElementById("summaryFuelCost");
     const summaryBlockPrice = document.getElementById("summaryBlockPrice");
@@ -773,6 +827,14 @@
     const logBox = document.getElementById("logBox");
     const historyList = document.getElementById("historyList");
     const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+    // Resumen semanal
+    const weeklyLimitInput = document.getElementById("weeklyLimit");
+    const weeklyHoursUsedEl = document.getElementById("weeklyHoursUsed");
+    const weeklyHoursLeftEl = document.getElementById("weeklyHoursLeft");
+    const weeklyBlocksLeftEl = document.getElementById("weeklyBlocksLeft");
+    const weeklyBlocksCountEl = document.getElementById("weeklyBlocksCount");
+    const weekStartLabelEl = document.getElementById("weekStartLabel");
 
     let trackingId = null;
     let trackingPoints = [];
@@ -827,7 +889,53 @@
     function clearHistory() {
       localStorage.removeItem("kairos_block_history");
       renderHistory();
+      computeWeeklyStats();
       log("Historial de bloques borrado por el usuario.");
+    }
+
+    function getCurrentWeekStart() {
+      const now = new Date();
+      const d = new Date(now);
+      const day = d.getDay(); // 0 = domingo
+      d.setHours(0, 0, 0, 0);
+      d.setDate(d.getDate() - day);
+      return d;
+    }
+
+    function computeWeeklyStats() {
+      const history = loadHistory();
+      const weekStart = getCurrentWeekStart();
+      const now = new Date();
+
+      let usedHours = 0;
+      let blocks = 0;
+
+      history.forEach(rec => {
+        if (!rec.timestamp) return;
+        const dt = new Date(rec.timestamp);
+        if (dt < weekStart || dt > now) return;
+
+        let h = 0;
+        if (typeof rec.durationOfficial === "number") {
+          h = rec.durationOfficial;
+        } else if (typeof rec.elapsedMs === "number") {
+          h = rec.elapsedMs / 3600000;
+        }
+        usedHours += h;
+        blocks += 1;
+      });
+
+      let limit = parseFloat(weeklyLimitInput.value || "40");
+      if (!limit || limit < 0) limit = 40;
+
+      const left = Math.max(0, limit - usedHours);
+      const blocks35 = left > 0 ? Math.floor(left / 3.5) : 0;
+
+      weeklyHoursUsedEl.textContent = usedHours.toFixed(1) + " h";
+      weeklyHoursLeftEl.textContent = left.toFixed(1) + " h";
+      weeklyBlocksLeftEl.textContent = String(blocks35);
+      weeklyBlocksCountEl.textContent = String(blocks);
+      weekStartLabelEl.textContent = weekStart.toLocaleDateString();
     }
 
     (function initFromStorage() {
@@ -837,7 +945,14 @@
         rememberVehicleCheckbox.checked = true;
         updateVehicleHint();
       }
+
+      const savedLimit = localStorage.getItem("kairos_weekly_limit_hours");
+      if (savedLimit) {
+        weeklyLimitInput.value = savedLimit;
+      }
+
       renderHistory();
+      computeWeeklyStats();
     })();
 
     // --------- UTILIDADES ---------
@@ -1064,9 +1179,14 @@
       const price = parseFloat(blockPriceInput.value || "0");
       const vehicleKey = vehicleSelect.value;
       const vehicle = VEHICLE_CATEGORIES[vehicleKey];
+      const durationOfficial = parseFloat(blockDurationSelect.value || "0");
 
       if (!price || price <= 0) {
         alert("Coloca un precio válido para el bloque.");
+        return;
+      }
+      if (!durationOfficial || durationOfficial <= 0) {
+        alert("Selecciona la duración oficial del bloque (horas Amazon).");
         return;
       }
       if (!vehicleKey || !vehicle) {
@@ -1107,6 +1227,7 @@
 
       summaryMiles.textContent = "—";
       summaryTime.textContent = "—";
+      summaryOfficialDuration.textContent = "—";
       summaryFuel.textContent = "—";
       summaryFuelCost.textContent = "—";
       summaryBlockPrice.textContent = "—";
@@ -1120,7 +1241,9 @@
 
       resetRouteCanvas();
       logBox.textContent = "";
-      log("Bloque iniciado. Precio: $" + price.toFixed(2) + ", Vehículo: " + vehicle.name);
+      log("Bloque iniciado. Precio: $" + price.toFixed(2) +
+          ", Vehículo: " + vehicle.name +
+          ", Duración oficial: " + durationOfficial.toFixed(1) + " h");
 
       timerInterval = setInterval(updateTimer, 1000);
 
@@ -1167,6 +1290,11 @@
       const vehicleKey = vehicleSelect.value;
       const vehicle = VEHICLE_CATEGORIES[vehicleKey];
 
+      let durationOfficial = parseFloat(blockDurationSelect.value || "0");
+      if (!durationOfficial || durationOfficial <= 0) {
+        durationOfficial = elapsedMs / 3600000; // respaldo si no está
+      }
+
       let fuelLabel = "";
       let fuelAmount = 0;
       let fuelCost = 0;
@@ -1189,13 +1317,14 @@
 
       summaryMiles.textContent = miles.toFixed(2) + " mi";
       summaryTime.textContent = formatTime(elapsedMs);
+      summaryOfficialDuration.textContent = durationOfficial.toFixed(1) + " h";
       summaryFuel.textContent = fuelLabel;
       summaryFuelCost.textContent = fuelCost.toFixed(2) + " USD";
       summaryBlockPrice.textContent = price.toFixed(2) + " USD";
       summaryNet.textContent = net.toFixed(2) + " USD";
 
-      const hours = elapsedMs / 3600000;
-      const netPerHour = hours > 0 ? net / hours : 0;
+      const hoursReal = elapsedMs / 3600000;
+      const netPerHour = hoursReal > 0 ? net / hoursReal : 0;
       let verdictText = `\$${netPerHour.toFixed(2)}/h`;
       let verdictClass = "status-warn";
       if (netPerHour >= 30) {
@@ -1229,7 +1358,7 @@
       summaryStartCity.textContent = startCityLabel;
       summaryEndCity.textContent = endCityLabel;
 
-      log(`Bloque finalizado. Millas: ${miles.toFixed(2)} mi, consumo: ${fuelLabel}, costo: $${fuelCost.toFixed(2)}, neto: $${net.toFixed(2)}, $/h: ${netPerHour.toFixed(2)}, Inicio: ${startCityLabel}, Fin: ${endCityLabel}`);
+      log(`Bloque finalizado. Millas: ${miles.toFixed(2)} mi, consumo: ${fuelLabel}, costo: $${fuelCost.toFixed(2)}, neto: $${net.toFixed(2)}, $/h: ${netPerHour.toFixed(2)}, Inicio: ${startCityLabel}, Fin: ${endCityLabel}, Oficial: ${durationOfficial.toFixed(1)} h`);
 
       lastSummary = {
         timestamp: new Date().toISOString(),
@@ -1245,7 +1374,8 @@
         net,
         netPerHour,
         startCity: startCityLabel,
-        endCity: endCityLabel
+        endCity: endCityLabel,
+        durationOfficialHours: durationOfficial
       };
 
       saveHistoryEntry({
@@ -1253,9 +1383,12 @@
         vehicleName: lastSummary.vehicleName,
         miles: lastSummary.miles,
         net: lastSummary.net,
-        netPerHour: lastSummary.netPerHour
+        netPerHour: lastSummary.netPerHour,
+        durationOfficial: lastSummary.durationOfficialHours,
+        elapsedMs: lastSummary.elapsedMs
       });
       renderHistory();
+      computeWeeklyStats();
 
       pdfBtn.disabled = false;
       startTime = null;
@@ -1267,6 +1400,14 @@
       if (confirm("¿Seguro que quieres borrar el historial de bloques guardados?")) {
         clearHistory();
       }
+    });
+
+    weeklyLimitInput.addEventListener("change", () => {
+      const val = parseFloat(weeklyLimitInput.value || "40");
+      if (val > 0) {
+        localStorage.setItem("kairos_weekly_limit_hours", String(val));
+      }
+      computeWeeklyStats();
     });
 
     // --------- PDF ---------
@@ -1301,14 +1442,15 @@
       doc.text("Vehículo: " + lastSummary.vehicleName, 10, y); y += 5;
       doc.text("Ciudad inicio: " + (lastSummary.startCity || "—"), 10, y); y += 5;
       doc.text("Ciudad fin: " + (lastSummary.endCity || "—"), 10, y); y += 5;
+      doc.text("Duración oficial bloque: " + lastSummary.durationOfficialHours.toFixed(1) + " h", 10, y); y += 5;
       doc.text("Distancia: " + lastSummary.miles.toFixed(2) + " mi", 10, y); y += 5;
-      doc.text("Tiempo: " + formatTime(lastSummary.elapsedMs), 10, y); y += 5;
+      doc.text("Tiempo real: " + formatTime(lastSummary.elapsedMs), 10, y); y += 5;
       doc.text("Consumo: " + lastSummary.fuelLabel, 10, y); y += 5;
       doc.text("Costo combustible/energía: $" + lastSummary.fuelCost.toFixed(2), 10, y); y += 5;
       doc.text("Precio bloque: $" + lastSummary.blockPrice.toFixed(2), 10, y); y += 5;
       doc.text("Ganancia neta: $" + lastSummary.net.toFixed(2), 10, y); y += 5;
       const netPerHour = lastSummary.netPerHour;
-      doc.text("Neto por hora: $" + netPerHour.toFixed(2) + "/h", 10, y); y += 8;
+      doc.text("Neto por hora real: $" + netPerHour.toFixed(2) + "/h", 10, y); y += 8;
 
       try {
         const imgData = routeCanvas.toDataURL("image/png");
